@@ -1,6 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
-import { FlaskConical, Lock, User, KeyRound, ShieldAlert } from 'lucide-react';
+import { FlaskConical, Lock, User, KeyRound, ShieldAlert, Key, Loader2, ExternalLink } from 'lucide-react';
 import { User as UserType } from '../types';
+import { saveApiKey } from '../utils/secureStorage';
+import { testGeminiConnection } from '../services/geminiService';
 
 interface AuthScreenProps {
   onLogin: (user: UserType) => void;
@@ -15,7 +18,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [labCode, setLabCode] = useState('');
+  const [apiKey, setApiKey] = useState(''); // New API Key State
+  
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // Loading state for API test
 
   // Hidden Trigger State
   const [logoClicks, setLogoClicks] = useState(0);
@@ -25,6 +31,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     if (isLoginMode) {
       setIsAdminSignup(false);
       setLogoClicks(0);
+      setError('');
+    } else {
+      setError('');
     }
   }, [isLoginMode]);
 
@@ -41,7 +50,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -66,12 +75,35 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         return;
       }
 
-      // Check Lab Code (skip if admin signup)
+      // 1. Check Lab Code (skip if admin signup)
       if (!isAdminSignup && labCode !== currentLabCode) {
         setError('실험실 비밀번호(Lab Code)가 일치하지 않습니다.');
         return;
       }
 
+      // 2. Validate API Key (Mandatory)
+      if (!apiKey.trim()) {
+        setError('Google Gemini API Key를 입력해주세요.');
+        return;
+      }
+
+      setIsLoading(true);
+      const isKeyValid = await testGeminiConnection(apiKey);
+      setIsLoading(false);
+
+      if (!isKeyValid) {
+        setError('유효하지 않은 API Key입니다. 키를 확인하거나 새로 발급받으세요.');
+        return;
+      }
+
+      // 3. Save API Key Securely
+      const saved = saveApiKey(apiKey);
+      if (!saved) {
+        setError('API Key 저장 중 오류가 발생했습니다.');
+        return;
+      }
+
+      // 4. Create User
       const newUser: UserType = {
         id: userId,
         password: password, // Note: In production, hash this!
@@ -87,10 +119,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         localStorage.setItem('lab_mgr_code', 'LAB1234');
       }
 
-      alert(isAdminSignup ? "관리자 계정이 생성되었습니다." : "회원가입이 완료되었습니다.");
-      setIsLoginMode(true);
-      setIsAdminSignup(false);
-      setLogoClicks(0);
+      alert(isAdminSignup ? "관리자 계정이 생성되었습니다." : "회원가입 및 API Key 등록이 완료되었습니다.");
+      
+      // Auto login after signup
+      onLogin(newUser);
     }
   };
 
@@ -132,8 +164,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-8 space-y-4">
           {error && (
-            <div className="bg-red-50 text-red-600 text-xs p-3 rounded-lg flex items-center gap-2">
-              <ShieldAlert size={14} />
+            <div className="bg-red-50 text-red-600 text-xs p-3 rounded-lg flex items-center gap-2 animate-pulse">
+              <ShieldAlert size={14} className="shrink-0" />
               {error}
             </div>
           )}
@@ -204,26 +236,54 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                         placeholder="실험실 보안 코드 입력"
                     />
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1 pl-1">* 실험실 관리자에게 문의하세요.</p>
                 </div>
               )}
+
+              {/* API Key Input Section (Mandatory for Signup) */}
+              <div className="pt-2 border-t border-gray-100">
+                <div className="flex justify-between items-center mb-1">
+                   <label className="block text-xs font-semibold text-indigo-600">Google Gemini API Key (필수)</label>
+                   <a 
+                     href="https://aistudio.google.com/app/apikey" 
+                     target="_blank" 
+                     rel="noreferrer"
+                     className="text-[10px] text-gray-400 flex items-center gap-1 hover:text-indigo-500"
+                   >
+                     키 발급받기 <ExternalLink size={10} />
+                   </a>
+                </div>
+                <div className="relative">
+                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                        required
+                        type="password"
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 border border-indigo-200 bg-indigo-50/30 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all font-mono text-sm"
+                        placeholder="AIzaSy..."
+                    />
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1 pl-1">
+                  * 앱 사용을 위해 유효한 API Key 등록이 필요합니다.
+                </p>
+              </div>
             </>
           )}
 
           <button
             type="submit"
-            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 mt-4"
+            disabled={isLoading}
+            className={`w-full py-3 rounded-lg font-bold transition-all shadow-lg mt-4 flex justify-center items-center gap-2 ${
+                isLoading 
+                ? 'bg-indigo-400 cursor-wait text-white' 
+                : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200'
+            }`}
           >
-            {isLoginMode ? '로그인' : (isAdminSignup ? '관리자 등록' : '가입하기')}
+            {isLoading && <Loader2 size={18} className="animate-spin" />}
+            {isLoginMode ? '로그인' : (isAdminSignup ? '관리자 등록 및 시작' : '가입하기 (API 키 검증)')}
           </button>
         </form>
       </div>
-      
-      {!isLoginMode && !isAdminSignup && (
-        <div className="fixed bottom-4 text-gray-300 text-xs">
-            Tip: 로고를 5번 클릭하면 관리자 등록이 가능합니다.
-        </div>
-      )}
     </div>
   );
 };

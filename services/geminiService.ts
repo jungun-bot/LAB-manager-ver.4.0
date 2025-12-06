@@ -1,10 +1,39 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { InventoryItem, AIAnalysisResult, Category } from "../types";
+import { getApiKey } from "../utils/secureStorage";
 
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+const getAI = (apiKey?: string) => {
+  const key = apiKey || getApiKey();
+  if (!key) throw new Error("API Key not found");
+  return new GoogleGenAI({ apiKey: key });
+};
+
+export const testGeminiConnection = async (apiKey: string): Promise<boolean> => {
+  try {
+    const ai = getAI(apiKey);
+    // Simple test generation
+    await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: "Hello",
+    });
+    return true;
+  } catch (error) {
+    console.error("Gemini Connection Test Failed:", error);
+    return false;
+  }
+};
 
 export const analyzeInventoryWithGemini = async (items: InventoryItem[]): Promise<AIAnalysisResult> => {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return {
+      summary: "API 키가 설정되지 않았습니다. 설정 메뉴에서 API 키를 등록해주세요.",
+      alerts: [{ severity: 'high', message: "API 키 누락" }],
+      suggestions: ["좌측 하단 열쇠 아이콘을 클릭하여 키를 설정하세요."]
+    };
+  }
+
   if (!items || items.length === 0) {
     return {
       summary: "재고가 비어있습니다. 항목을 추가하여 분석을 시작하세요.",
@@ -46,6 +75,7 @@ export const analyzeInventoryWithGemini = async (items: InventoryItem[]): Promis
   `;
 
   try {
+    const ai = getAI(apiKey);
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
@@ -84,11 +114,10 @@ export const analyzeInventoryWithGemini = async (items: InventoryItem[]): Promis
 
   } catch (error) {
     console.error("AI Analysis Failed", error);
-    // Fallback in case of error
     return {
-      summary: "AI 분석을 수행할 수 없습니다. 네트워크 연결을 확인해 주세요.",
-      alerts: [{ severity: 'medium', message: "AI 서비스 응답 없음" }],
-      suggestions: ["인터넷 연결 확인", "API 키 확인"]
+      summary: "AI 분석을 수행할 수 없습니다. API 키 상태나 네트워크 연결을 확인해 주세요.",
+      alerts: [{ severity: 'medium', message: "AI 서비스 응답 실패" }],
+      suggestions: ["API 키 유효성 확인", "인터넷 연결 확인"]
     };
   }
 };

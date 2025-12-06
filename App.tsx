@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import InventoryList from './components/InventoryList';
@@ -7,9 +8,10 @@ import CellStockChart from './components/CellStockChart';
 import OrderNeededList from './components/OrderNeededList';
 import AuthScreen from './components/AuthScreen';
 import LabSettingsModal from './components/LabSettingsModal';
+import ApiKeyModal from './components/ApiKeyModal';
 import { InventoryItem, Category, AIAnalysisResult, User } from './types';
 import { analyzeInventoryWithGemini } from './services/geminiService';
-import { Plus, Menu, LogOut, Settings } from 'lucide-react';
+import { Plus, Menu, LogOut, Settings, Key } from 'lucide-react';
 
 // Sample Initial Data
 const INITIAL_ITEMS: InventoryItem[] = [
@@ -34,6 +36,7 @@ function App() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile toggle
 
@@ -138,6 +141,7 @@ function App() {
         user={user}
         onLogout={handleLogout}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
+        onOpenApiKey={() => setIsApiKeyModalOpen(true)}
       />
       
       {/* Mobile Sidebar Overlay */}
@@ -150,6 +154,9 @@ function App() {
              <button onClick={() => { setActiveTab('media'); setIsSidebarOpen(false); }} className="block w-full text-left p-4 hover:bg-gray-100">배지</button>
              
              <div className="border-t border-gray-100 mt-4 pt-4 px-4 space-y-2">
+                 <button onClick={() => { setIsApiKeyModalOpen(true); setIsSidebarOpen(false); }} className="flex items-center gap-2 text-gray-600 py-2">
+                    <Key size={18} /> API 키 설정
+                 </button>
                  {user.isAdmin && (
                     <button onClick={() => { setIsSettingsModalOpen(true); setIsSidebarOpen(false); }} className="flex items-center gap-2 text-gray-600 py-2">
                         <Settings size={18} /> 관리자 설정
@@ -263,6 +270,11 @@ function App() {
       <LabSettingsModal 
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
+      />
+
+      <ApiKeyModal 
+        isOpen={isApiKeyModalOpen}
+        onClose={() => setIsApiKeyModalOpen(false)}
       />
     </div>
   );

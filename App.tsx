@@ -9,6 +9,7 @@ import OrderNeededList from './components/OrderNeededList';
 import AuthScreen from './components/AuthScreen';
 import LabSettingsModal from './components/LabSettingsModal';
 import ApiKeyModal from './components/ApiKeyModal';
+import DeleteConfirmationModal from './components/DeleteConfirmationModal';
 import { InventoryItem, Category, AIAnalysisResult, User } from './types';
 import { analyzeInventoryWithGemini } from './services/geminiService';
 import { Plus, Menu, LogOut, Settings, Key } from 'lucide-react';
@@ -38,6 +39,10 @@ function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  
+  // Delete Modal State
+  const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile toggle
 
   // AI State
@@ -88,9 +93,17 @@ function App() {
     setEditingItem(null);
   };
 
-  const handleDeleteItem = (id: string) => {
-    if (confirm('정말로 이 항목을 삭제하시겠습니까?')) {
-        setItems(prev => prev.filter(i => i.id !== id));
+  const handleDeleteClick = (id: string) => {
+    const item = items.find(i => i.id === id);
+    if (item) {
+        setItemToDelete(item);
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    if (itemToDelete) {
+        setItems(prev => prev.filter(i => i.id !== itemToDelete.id));
+        setItemToDelete(null);
     }
   };
 
@@ -241,7 +254,7 @@ function App() {
                     <h3 className="font-semibold text-gray-800">최신 재고 목록</h3>
                 </div>
                 <div className="h-[400px] overflow-hidden">
-                    <InventoryList items={items} onDelete={handleDeleteItem} onUpdateQuantity={handleUpdateQuantity} onEdit={handleEditClick} />
+                    <InventoryList items={items} onDelete={handleDeleteClick} onUpdateQuantity={handleUpdateQuantity} onEdit={handleEditClick} />
                 </div>
             </div>
           </div>
@@ -249,13 +262,13 @@ function App() {
 
         {/* Category Views */}
         {activeTab === 'cells' && (
-            <InventoryList items={items} categoryFilter={Category.CELL_STOCK} onDelete={handleDeleteItem} onUpdateQuantity={handleUpdateQuantity} onEdit={handleEditClick} />
+            <InventoryList items={items} categoryFilter={Category.CELL_STOCK} onDelete={handleDeleteClick} onUpdateQuantity={handleUpdateQuantity} onEdit={handleEditClick} />
         )}
         {activeTab === 'media' && (
-            <InventoryList items={items} categoryFilter={Category.MEDIA} onDelete={handleDeleteItem} onUpdateQuantity={handleUpdateQuantity} onEdit={handleEditClick} />
+            <InventoryList items={items} categoryFilter={Category.MEDIA} onDelete={handleDeleteClick} onUpdateQuantity={handleUpdateQuantity} onEdit={handleEditClick} />
         )}
         {activeTab === 'reagents' && (
-            <InventoryList items={items} categoryFilter={Category.REAGENT} onDelete={handleDeleteItem} onUpdateQuantity={handleUpdateQuantity} onEdit={handleEditClick} />
+            <InventoryList items={items} categoryFilter={Category.REAGENT} onDelete={handleDeleteClick} onUpdateQuantity={handleUpdateQuantity} onEdit={handleEditClick} />
         )}
 
       </main>
@@ -275,6 +288,13 @@ function App() {
       <ApiKeyModal 
         isOpen={isApiKeyModalOpen}
         onClose={() => setIsApiKeyModalOpen(false)}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={!!itemToDelete}
+        onClose={() => setItemToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        itemName={itemToDelete?.name}
       />
     </div>
   );

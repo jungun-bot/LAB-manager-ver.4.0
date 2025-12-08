@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { InventoryItem, Category } from '../types';
 import { Search, Droplet, Dna, FileBox, Trash2, Edit2, ChevronDown, ChevronRight, StickyNote, Plus, Minus, Copy } from 'lucide-react';
@@ -288,7 +289,7 @@ const InventoryList: React.FC<InventoryListProps> = ({ items, categoryFilter = '
                         <Edit2 size={16} />
                     </button>
                     <button 
-                        onClick={() => onDelete(item.id)}
+                        onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
                         className="p-1.5 text-red-600 hover:bg-red-50 rounded"
                         title="삭제"
                     >

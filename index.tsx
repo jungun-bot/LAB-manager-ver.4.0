@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import './index.css'; // 스타일시트 로딩
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
